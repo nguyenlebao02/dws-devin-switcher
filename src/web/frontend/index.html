@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Devin Switcher</title>
+<style>
+:root {
+  --bg: #fafafa; --surface: #fff; --border: #e0e0e0;
+  --text: #1a1a1a; --text-muted: #666; --primary: #2563eb;
+  --success: #16a34a; --warning: #d97706; --error: #dc2626;
+  --radius: 6px; --shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111; --surface: #1a1a1a; --border: #333;
+    --text: #eee; --text-muted: #999; --primary: #60a5fa;
+    --success: #4ade80; --warning: #fbbf24; --error: #f87171;
+    --shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh}
+.app{max-width:960px;margin:0 auto;padding:20px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+header h1{font-size:1.4rem;font-weight:600}
+header .sub{font-size:.85rem;color:var(--text-muted)}
+nav{display:flex;gap:4px;margin-bottom:20px}
+nav button{padding:8px 18px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:var(--radius);cursor:pointer;font-size:.9rem;transition:all .15s}
+nav button:hover{background:var(--bg)}
+nav button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.card-header h2{font-size:1.1rem;font-weight:600}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:.9rem}
+th{font-weight:600;color:var(--text-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.05em}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:500}
+.badge-ready{background:#dcfce7;color:#166534}
+.badge-needs-login{background:#fef3c7;color:#92400e}
+.badge-exhausted{background:#fee2e2;color:#991b1b}
+.badge-unknown{background:var(--bg);color:var(--text-muted)}
+@media (prefers-color-scheme: dark) {
+  .badge-ready{background:#14532d;color:#86efac}
+  .badge-needs-login{background:#78350f;color:#fde68a}
+  .badge-exhausted{background:#7f1d1d;color:#fecaca}
+}
+.btn{padding:7px 14px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:var(--radius);cursor:pointer;font-size:.85rem;transition:all .15s;white-space:nowrap}
+.btn:hover{opacity:.85}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-danger{color:var(--error);border-color:var(--error)}
+.btn-sm{padding:4px 10px;font-size:.8rem}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap}
+input,select{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:.9rem;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:var(--primary)}
+.inline-form{display:flex;gap:8px;align-items:center;margin-bottom:14px}
+.inline-form input{flex:1;min-width:180px}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-muted)}
+.loading{text-align:center;padding:30px;color:var(--text-muted)}
+.error-state{text-align:center;padding:30px;color:var(--error)}
+.quota-bar{width:100%;height:6px;background:var(--border);border-radius:3px;overflow:hidden;min-width:60px}
+.quota-bar-fill{height:100%;border-radius:3px;transition:width .3s}
+.quota-bar-fill.high{background:var(--success)}
+.quota-bar-fill.medium{background:var(--warning)}
+.quota-bar-fill.low{background:var(--error)}
+.toast-container{position:fixed;top:16px;right:16px;z-index:1000;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:var(--radius);color:#fff;font-size:.9rem;animation:slideIn .25s ease;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.toast-success{background:var(--success)}
+.toast-error{background:var(--error)}
+.toast-info{background:var(--primary)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999}
+.modal{background:var(--surface);border-radius:var(--radius);padding:24px;max-width:500px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:12px}
+.modal p{margin-bottom:16px;color:var(--text-muted);font-size:.9rem}
+.modal code{display:block;background:var(--bg);padding:12px;border-radius:var(--radius);margin-bottom:16px;font-size:.85rem;word-break:break-all}
+.modal .btn-group{justify-content:flex-end}
+.org-card{display:flex;align-items:center;justify-content:space-between;padding:14px 16px}
+.org-card .org-id{font-weight:600;font-family:monospace;font-size:.9rem}
+.org-card .count{color:var(--text-muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="toast-container" id="toasts"></div>
+<div class="app">
+  <header>
+    <div><h1>Devin Switcher</h1><div class="sub">Account &amp; quota dashboard</div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="health-dot" style="width:8px;height:8px;border-radius:50%;background:var(--border)" title="Server status"></span>
+      <button class="btn btn-sm" onclick="refreshAll()" title="Refresh data">&#8635;</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="active" data-tab="accounts" onclick="showTab('accounts')">Accounts</button>
+    <button data-tab="quota" onclick="showTab('quota')">Quota</button>
+    <button data-tab="orgs" onclick="showTab('orgs')">Organizations</button>
+  </nav>
+
+  <!-- Accounts Tab -->
+  <div id="tab-accounts" class="tab-content active">
+    <div class="card">
+      <div class="card-header">
+        <h2>Accounts</h2>
+        <div class="btn-group">
+          <button class="btn btn-primary btn-sm" onclick="showAddForm()">+ Add Account</button>
+          <button class="btn btn-sm" onclick="loadAccounts()">Refresh</button>
+        </div>
+      </div>
+      <div id="add-form" class="inline-form" style="display:none">
+        <input type="text" id="add-name" placeholder="Account name (optional, inferred after login)" />
+        <button class="btn btn-primary btn-sm" onclick="addAccount()">Create &amp; Get Login Command</button>
+        <button class="btn btn-sm" onclick="hideAddForm()">Cancel</button>
+      </div>
+      <div id="accounts-content"></div>
+    </div>
+  </div>
+
+  <!-- Quota Tab -->
+  <div id="tab-quota" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <h2>Quota</h2>
+        <button class="btn btn-primary btn-sm" onclick="refreshQuota()">Refresh All Quota</button>
+      </div>
+      <div id="quota-content"></div>
+    </div>
+  </div>
+
+  <!-- Orgs Tab -->
+  <div id="tab-orgs" class="tab-content">
+    <div class="card">
+      <div class="card-header"><h2>Organizations</h2></div>
+      <div id="orgs-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal container -->
+<div id="modal-container"></div>
+
+<script>
+const API = '';
+let currentTab = 'accounts';
+
+async function api(method, path, body) {
+  const opts = { method, headers: {} };
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(API + path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function toast(msg, type) {
+  type = type || 'info';
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(function () { el.remove(); }, 4000);
+}
+
+// ---- Tab Navigation ----
+
+window.showTab = function (tab) {
+  currentTab = tab;
+  document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === tab); });
+  document.querySelectorAll('.tab-content').forEach(function (t) { t.classList.toggle('active', t.id === 'tab-' + tab); });
+  if (tab === 'accounts') loadAccounts();
+  else if (tab === 'quota') loadQuota();
+  else if (tab === 'orgs') loadOrgs();
+};
+
+// ---- Health check ----
+
+async function checkHealth() {
+  try {
+    var data = await api('GET', '/api/health');
+    var dot = document.getElementById('health-dot');
+    dot.style.background = 'var(--success)';
+    dot.title = 'Server OK (v' + data.version + ')';
+  } catch (e) {
+    document.getElementById('health-dot').style.background = 'var(--error)';
+  }
+}
+checkHealth();
+setInterval(checkHealth, 30000);
+
+// ---- Accounts ----
+
+window.showAddForm = function () {
+  document.getElementById('add-form').style.display = 'flex';
+  document.getElementById('add-name').focus();
+};
+
+window.hideAddForm = function () {
+  document.getElementById('add-form').style.display = 'none';
+  document.getElementById('add-name').value = '';
+};
+
+window.addAccount = async function () {
+  var name = document.getElementById('add-name').value.trim();
+  try {
+    var data = await api('POST', '/api/accounts', name ? { name: name } : {});
+    hideAddForm();
+    toast('Account "' + data.account.name + '" created. Run login command in terminal.', 'success');
+    loadAccounts();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+};
+
+window.loginAccount = async function (name) {
+  try {
+    var data = await api('POST', '/api/accounts/' + encodeURIComponent(name) + '/login');
+    if (data.status === 'already-logged-in') {
+      toast(name + ' is already logged in.', 'info');
+      loadAccounts();
+    } else {
+      showModal('Login Required', 'Run this command in your terminal to log in. Devin will open a browser for authentication.', data.manualCommand);
+    }
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+};
+
+window.removeAccount = async function (name) {
+  if (!confirm('Delete account "' + name + '" and its credentials? This cannot be undone.')) return;
+  try {
+    await api('DELETE', '/api/accounts/' + encodeURIComponent(name) + '?yes=true');
+    toast('Account "' + name + '" removed.', 'success');
+    loadAccounts();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+};
+
+window.showRunModal = async function (name) {
+  try {
+    var data = await api('POST', '/api/run', { name: name });
+    showModal('Run Devin', 'Run this command in a terminal. The devin REPL requires a TTY and cannot run inside the browser.', data.command);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+};
+
+async function loadAccounts() {
+  var el = document.getElementById('accounts-content');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Loading...</div>';
+  try {
+    var data = await api('GET', '/api/accounts');
+    if (data.accounts.length === 0) {
+      el.innerHTML = '<div class="empty-state">No accounts configured.<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="showAddForm()">+ Add Account</button></div>';
+      return;
+    }
+    var rows = data.accounts.map(function (a) {
+      var statusBadge = a.needsLogin ? '<span class="badge badge-needs-login">needs login</span>' : '<span class="badge badge-ready">ready</span>';
+      var org = a.orgId || '–';
+      var lastUsed = a.lastUsedAt ? formatTime(a.lastUsedAt) : 'never';
+      var actions = a.needsLogin
+        ? '<button class="btn btn-primary btn-sm" onclick="loginAccount(\'' + esc(a.name) + '\')">Login</button>'
+        : '<button class="btn btn-sm" onclick="showRunModal(\'' + esc(a.name) + '\')">Run</button>';
+      actions += ' <button class="btn btn-danger btn-sm" onclick="removeAccount(\'' + esc(a.name) + '\')">Remove</button>';
+      return '<tr><td><strong>' + esc(a.name) + '</strong></td><td>' + statusBadge + '</td><td>' + esc(a.email || '–') + '</td><td>' + esc(a.tier || a.plan || '–') + '</td><td style="font-family:monospace;font-size:.8rem">' + esc(org) + '</td><td>' + lastUsed + '</td><td><div class="btn-group">' + actions + '</div></td></tr>';
+    }).join('');
+    el.innerHTML = '<table><thead><tr><th>Name</th><th>Status</th><th>Email</th><th>Tier</th><th>Org ID</th><th>Last Used</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  } catch (e) {
+    el.innerHTML = '<div class="error-state">Failed to load: ' + esc(e.message) + '<br><button class="btn btn-sm" style="margin-top:8px" onclick="loadAccounts()">Retry</button></div>';
+  }
+}
+
+// ---- Quota ----
+
+async function loadQuota() {
+  var el = document.getElementById('quota-content');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Checking quota...</div>';
+  try {
+    var data = await api('GET', '/api/quota');
+    if (!data.quotas || data.quotas.length === 0) {
+      el.innerHTML = '<div class="empty-state">No accounts to check quota for.</div>';
+      return;
+    }
+    var rows = data.quotas.map(function (q) {
+      var a = q.account;
+      var s = q.summary;
+      var remaining = parseFloat(s.remainingPercent) || 0;
+      var cls = remaining > 50 ? 'high' : remaining > 0 ? 'medium' : 'low';
+      var statusLabel = q.status;
+      var statusBadge = q.status === 'ok' ? '<span class="badge badge-ready">ok</span>'
+        : q.status === 'exhausted' ? '<span class="badge badge-exhausted">exhausted</span>'
+        : q.status === 'needs-login' ? '<span class="badge badge-needs-login">needs login</span>'
+        : '<span class="badge badge-unknown">' + esc(statusLabel) + '</span>';
+      var bar = s.remainingPercent
+        ? '<div class="quota-bar"><div class="quota-bar-fill ' + cls + '" style="width:' + remaining + '%"></div></div>'
+        : '–';
+      return '<tr><td><strong>' + esc(a.name) + '</strong></td><td>' + statusBadge + '</td><td>' + esc(s.tier || '–') + '</td><td>' + esc(s.usedPercent || '–') + '</td><td>' + esc(s.remainingPercent || '–') + ' ' + bar + '</td><td>' + esc(s.resetsIn || s.resetAt || '–') + '</td></tr>';
+    }).join('');
+    var ts = data.fetchedAt ? new Date(data.fetchedAt).toLocaleTimeString() : 'now';
+    el.innerHTML = '<div style="margin-bottom:8px;font-size:.8rem;color:var(--text-muted)">' + (data.cached ? 'From cache' : 'Fresh') + ' &middot; ' + ts + '</div><table><thead><tr><th>Name</th><th>Status</th><th>Tier</th><th>Used</th><th>Remaining</th><th>Resets</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  } catch (e) {
+    el.innerHTML = '<div class="error-state">Failed to load quota: ' + esc(e.message) + '<br><button class="btn btn-sm" style="margin-top:8px" onclick="loadQuota()">Retry</button></div>';
+  }
+}
+
+window.refreshQuota = async function () {
+  var el = document.getElementById('quota-content');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Refreshing quota (this may take a few seconds)...</div>';
+  try {
+    var data = await api('GET', '/api/quota?refresh=1');
+    // Rebuild
+    var rows = data.quotas.map(function (q) {
+      var a = q.account; var s = q.summary;
+      var remaining = parseFloat(s.remainingPercent) || 0;
+      var cls = remaining > 50 ? 'high' : remaining > 0 ? 'medium' : 'low';
+      var statusBadge = q.status === 'ok' ? '<span class="badge badge-ready">ok</span>'
+        : q.status === 'exhausted' ? '<span class="badge badge-exhausted">exhausted</span>'
+        : q.status === 'needs-login' ? '<span class="badge badge-needs-login">needs login</span>'
+        : '<span class="badge badge-unknown">' + esc(q.status) + '</span>';
+      var bar = s.remainingPercent ? '<div class="quota-bar"><div class="quota-bar-fill ' + cls + '" style="width:' + remaining + '%"></div></div>' : '–';
+      return '<tr><td><strong>' + esc(a.name) + '</strong></td><td>' + statusBadge + '</td><td>' + esc(s.tier || '–') + '</td><td>' + esc(s.usedPercent || '–') + '</td><td>' + esc(s.remainingPercent || '–') + ' ' + bar + '</td><td>' + esc(s.resetsIn || s.resetAt || '–') + '</td></tr>';
+    }).join('');
+    el.innerHTML = '<div style="margin-bottom:8px;font-size:.8rem;color:var(--text-muted)">Fresh &middot; ' + new Date(data.fetchedAt).toLocaleTimeString() + '</div><table><thead><tr><th>Name</th><th>Status</th><th>Tier</th><th>Used</th><th>Remaining</th><th>Resets</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    toast('Quota refreshed.', 'success');
+  } catch (e) {
+    el.innerHTML = '<div class="error-state">Failed to refresh: ' + esc(e.message) + '<br><button class="btn btn-sm" style="margin-top:8px" onclick="refreshQuota()">Retry</button></div>';
+  }
+};
+
+// ---- Orgs ----
+
+async function loadOrgs() {
+  var el = document.getElementById('orgs-content');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>Loading...</div>';
+  try {
+    var data = await api('GET', '/api/orgs');
+    if (!data.orgs || data.orgs.length === 0) {
+      el.innerHTML = '<div class="empty-state">No organizations found across accounts.</div>';
+      return;
+    }
+    var cards = data.orgs.map(function (o) {
+      var accounts = o.accounts.map(function (a) { return '<div style="font-size:.85rem">' + esc(a.name) + ' (' + esc(a.tier || '–') + ')</div>'; }).join('');
+      return '<div class="card org-card"><div><div class="org-id">' + esc(o.orgId) + '</div><div style="margin-top:4px">' + accounts + '</div></div><div class="count">' + o.accountCount + ' account' + (o.accountCount !== 1 ? 's' : '') + '</div></div>';
+    }).join('');
+    el.innerHTML = cards;
+  } catch (e) {
+    el.innerHTML = '<div class="error-state">Failed to load: ' + esc(e.message) + '<br><button class="btn btn-sm" style="margin-top:8px" onclick="loadOrgs()">Retry</button></div>';
+  }
+}
+
+// ---- Global refresh ----
+
+window.refreshAll = function () {
+  if (currentTab === 'accounts') loadAccounts();
+  else if (currentTab === 'quota') loadQuota();
+  else if (currentTab === 'orgs') loadOrgs();
+};
+
+// ---- Modal ----
+
+function showModal(title, message, code) {
+  var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>' + esc(title) + '</h3><p>' + esc(message) + '</p><code>' + esc(code) + '</code><div class="btn-group" style="justify-content:flex-end"><button class="btn btn-sm" onclick="copyToClipboard(\'' + esc(code) + '\')">Copy</button><button class="btn btn-sm" onclick="closeModal()">Close</button></div></div></div>';
+  document.getElementById('modal-container').innerHTML = html;
+}
+
+window.closeModal = function () {
+  document.getElementById('modal-container').innerHTML = '';
+};
+
+window.copyToClipboard = function (text) {
+  navigator.clipboard.writeText(text).then(function () { toast('Copied!', 'success'); });
+};
+
+// ---- Helpers ----
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function formatTime(epochSeconds) {
+  var diff = Math.floor(Date.now() / 1000) - epochSeconds;
+  if (diff < 0) return 'just now';
+  if (diff < 60) return diff + 's ago';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return Math.floor(diff / 86400) + 'd ago';
+}
+
+// ---- Init ----
+
+loadAccounts();
+</script>
+</body>
+</html>

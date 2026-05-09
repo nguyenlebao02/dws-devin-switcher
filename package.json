@@ -24,7 +24,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').cpSync('src/web/frontend','dist/src/web/frontend',{recursive:true})\"",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
     "prepack": "npm run build",

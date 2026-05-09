@@ -1,9 +1,9 @@
 # Product Requirements Document - devin-switcher
 
-**Version:** 1.4.0
-**Date:** 2026-05-08
+**Version:** 1.6.0
+**Date:** 2026-05-09
 **Status:** Active
-**Source:** Extracted from commit `3c08cdc`, updated through release `0.4.9`, `README.md`, `package.json`, `package-lock.json`, `src/`, `tests/`
+**Source:** Extracted from commit `3c08cdc`, updated through release `0.5.0`, `README.md`, `package.json`, `package-lock.json`, `src/`, `tests/`
 **Owner:** itsddvn
 
 ---
@@ -14,7 +14,7 @@
 `devin-switcher` is a local CLI named `dsw` that lets one operator keep multiple Devin CLI accounts on one machine and run `devin` under isolated account profiles. The product reduces account exhaustion risk by rotating ready accounts and keeping credentials separate while preserving shared Devin CLI runtime state.
 
 ### 1.2 Scope (in)
-- Manage local Devin account records with add, list, login, remove, use, quota, and doctor commands.
+- Manage local Devin account records with add, list, login, remove, use, quota, doctor, and web commands.
 - Run the Devin CLI under the selected account profile.
 - Select accounts by quota-aware default execution, using least-recently-used only as a tie-breaker.
 - Select accounts by maximum remaining quota for both default `dsw`.
@@ -30,9 +30,9 @@
 ### 1.3 Scope (out)
 - Quota-aware automatic selection is in scope for default `dsw`; predictive quota forecasting remains out of scope.
 - Multi-user, team, or networked account sharing.
-- Cloud service, daemon, API server, database engine, web UI, or mobile UI.
+- Cloud service, daemon, database engine, or mobile UI.
 - Owning Devin authentication internals beyond invoking `devin auth login` and `devin auth status`.
-- Generated API reference, because this project exposes no HTTP or RPC API.
+- Generated API reference; the REST API is documented in the web server source code only.
 
 ### 1.4 Glossary
 | Term | Definition |
@@ -132,6 +132,17 @@ Integration tests use `scripts/fake-devin.ts` and do not touch real credentials.
 - `dsw doctor` prints app paths, profile paths, account count, Devin CLI detection, and node-pty availability.
 - **Acceptance bar:** Integration tests cover update dry-run and doctor output; package metadata exposes `dsw`; npm pack emits runtime files only. Source: `package.json:2`, `package.json:13`, `package.json:16`, `node-pty optional dependency:1`, `tests/integration/cli.spec.ts`.
 
+### F7. Web Dashboard
+**Goal:** Provide a browser-based view of accounts, quota, and organizations.
+**Why:** Operators who prefer a visual dashboard over terminal commands can monitor account state and quota in a browser.
+**Requirements summary:**
+- `dsw web [--port <n>] [--host <host>] [--open]` starts a local HTTP server.
+- Server uses Node.js built-in `node:http` with zero additional dependencies.
+- REST API endpoints: `GET /api/health`, `GET /api/accounts`, `POST /api/accounts`, `GET /api/accounts/:name`, `DELETE /api/accounts/:name`, `POST /api/accounts/:name/login`, `GET /api/accounts/:name/login-status`, `GET /api/quota`, `GET /api/accounts/:name/quota`, `POST /api/run`, `GET /api/orgs`, `GET /api/doctor`.
+- Single-page frontend with three tabs (Accounts, Quota, Organizations) served from `src/web/frontend/index.html`.
+- Frontend supports dark mode via `prefers-color-scheme`, toast notifications, modals, and quota progress bars.
+**Acceptance bar:** `dsw web` starts the server; frontend loads at `http://127.0.0.1:3456/`; REST API returns JSON for all endpoints.
+
 ## 5. Solution Context
 
 ### 5.1 Key Entities
@@ -145,7 +156,14 @@ Integration tests use `scripts/fake-devin.ts` and do not touch real credentials.
 | Shared Devin config | User-level `devin/config.json` used as non-auth setting source. |
 
 ### 5.2 UI Pages
-Not applicable. This is a CLI tool with terminal commands, not a graphical UI.
+
+The primary interface is the CLI. A supplemental web dashboard is served by `dsw web`:
+
+- **Accounts page**: Table of configured accounts with status, email, tier, org id, last-used time, and actions (add, login, run, remove).
+- **Quota page**: Per-account quota bars, tier, used/remaining percentages, and reset time; supports refresh from cache or fresh probe.
+- **Organizations page**: Organization IDs grouped across accounts with member counts and tiers.
+
+The frontend is a single `index.html` with embedded CSS and JavaScript served by the built-in HTTP server at `http://127.0.0.1:3456`.
 
 ## 6. Non-Functional Requirements (summary)
 - Security: credentials MUST remain per-profile and auth-like output MUST be redacted before stored or displayed by parsing helpers.
@@ -164,6 +182,7 @@ Not applicable. This is a CLI tool with terminal commands, not a graphical UI.
 | M3 | Documentation extraction | 1 day | Product docs exist under `docs/` and pass basic verification. |
 | M4 | Direct selection and quota reporting | Completed | `dsw use`, `dsw quota`, node-pty dependency, tests, and docs exist. |
 | M5 | Package publication and quota cache | Completed | Public npm metadata, runtime package files, quota cache, and installer policy exist. |
+| M6 | Web dashboard | Completed | `dsw web` command, REST API, single-page frontend, and node:http built-in server. |
 
 ## 8. Risks
 
@@ -192,10 +211,10 @@ Project archetype: **CLI Tool**
 | 5 | SRS | Included | MANDATORY |
 | 6 | USECASES | Included | CLI actor interactions are useful for tests. |
 | 7 | USERFLOWS | Skipped | CLI use cases are simple enough without multi-step flow diagrams. |
-| 8 | SITEMAP | Skipped | No UI routes. |
+| 8 | SITEMAP | Skipped | UI routes are static (Accounts, Quota, Orgs tabs); no dynamic routing required. |
 | 9 | DESIGN | Skipped | No visual design system. |
 | 10 | DATABASE | Skipped | Persistence is a JSON file, not a database engine/DDL. |
-| 11 | API_REFERENCE | Skipped | No exposed API. |
+| 11 | API_REFERENCE | Skipped | REST API is self-documenting from source; endpoints listed in PRD F7. |
 | 12 | TESTCASES | Included | MANDATORY |
 | 13 | ROADMAP | Included | MANDATORY |
 | 14 | EXTERNAL_DOCS | Included | Devin CLI and npm package references are external dependencies. |
@@ -215,6 +234,7 @@ Project archetype: **CLI Tool**
 | 9 | How should repeated quota checks be managed? | Cache quota summaries in `~/.dsw/quota-cache.json`, respect `DSW_QUOTA_CACHE_TTL_MS`, and invalidate the selected account after a run. | 2026-05-07 | Avoids slow node-pty quota checks on every automatic invocation while preserving freshness after use. |
 | 10 | How is the CLI distributed? | Publish as public npm package `@itsddvn/dsw` with `dsw` binary and runtime-only package files. | 2026-05-07 | Enables `npm install -g @itsddvn/dsw` and npm-backed `dsw update`. |
 | 11 | How should temporary rate limits be handled? | Wait and run `devin --continue` up to three times before switching accounts by positive parsed quota. | 2026-05-08 | Prevents temporary tool-call rate limits from causing unnecessary account switches. |
+| 12 | Should the CLI have a web dashboard? | Add `dsw web` command with built-in node:http server and vanilla HTML/CSS/JS frontend. | 2026-05-09 | Provides a browser-based view without adding npm dependencies. |
 
 ## Change Log
 
@@ -226,3 +246,4 @@ Project archetype: **CLI Tool**
 | 1.3.0 | 2026-05-07 | itsddvn | Aligned package publication, quota cache, , and release metadata with commit `49ceed6`. |
 | 1.4.0 | 2026-05-08 | itsddvn | Added `0.4.8` rate-limit recovery behavior and package version decision. |
 | 1.5.0 | 2026-05-09 | Codex | Updated package decision to `0.4.9` for shared Trial-only selection and interactive prompt fixes. |
+| 1.6.0 | 2026-05-09 | docs-manager | Added F7 Web Dashboard feature, updated scope to include web UI, added M6 milestone, and resolved decision for built-in HTTP server. |

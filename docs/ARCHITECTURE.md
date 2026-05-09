@@ -1,9 +1,9 @@
 # Architecture - devin-switcher
 
-**Version:** 1.4.0
-**Date:** 2026-05-08
+**Version:** 1.5.0
+**Date:** 2026-05-09
 **Status:** Active
-**Source:** PRD v1.4.0, TECHSTACK v1.3.0, `src/`, `tests/`, `README.md`, `package.json`
+**Source:** PRD v1.6.0, TECHSTACK v1.3.0, `src/`, `tests/`, `README.md`, `package.json`
 **Owner:** itsddvn
 
 ---
@@ -55,6 +55,10 @@ flowchart LR
     quota --> devin
     profiles --> shared
     tests --> cli
+    web[Node.js HTTP server: dsw web\nC-08 Web Dashboard]
+    web --> store
+    web --> profiles
+    web --> quota
 ```
 
 All components run on the local host. Normal execution spawns `devin`; quota reporting adds hidden node-pty sessions that run Devin under each profile environment.
@@ -66,7 +70,7 @@ All components run on the local host. Normal execution spawns `devin`; quota rep
 **Responsibility:** Parse CLI arguments and execute command handlers.
 **Type:** CLI process.
 **Owned data:** None directly.
-**Exposed interface:** `dsw`, `dsw list`, `dsw add`, `dsw remove`, `dsw login`, `dsw use`, `dsw quota`, `dsw update`, `dsw doctor`. The removed `dsw next` token is guarded and exits before Devin forwarding.
+**Exposed interface:** `dsw`, `dsw list`, `dsw add`, `dsw remove`, `dsw login`, `dsw use`, `dsw quota`, `dsw update`, `dsw doctor`, `dsw web`. The removed `dsw next` token is guarded and exits before Devin forwarding.
 **Consumes:** `C-02`, `C-03`, `C-04`, `C-05`, `C-07`.
 **Tech:** `TS-LANG-01`, `TS-RT-02`, `TS-FW-03`.
 **Source dir:** `src/cli/`.
@@ -166,6 +170,21 @@ All components run on the local host. Normal execution spawns `devin`; quota rep
 **Related FRs:** `FR-RUN-005`, `FR-RUN-006`, `FR-RUN-007`, `FR-OPS-004`.
 **Related BR:** `BR-AUTH-01`, `BR-OPS-03`.
 
+### `C-08` Web Dashboard
+
+**Responsibility:** Serve a local REST API and single-page frontend for browsing accounts, quota checks, organizations, and diagnostics.
+**Type:** Node.js HTTP server process.
+**Owned data:** None directly; reads from `C-02`.
+**Exposed interface:** `dsw web` CLI command; REST API at `http://127.0.0.1:3456`.
+**Consumes:** `C-02`, `C-03`, `C-04`, `C-07`.
+**Tech:** `TS-LANG-01`, `TS-RT-02`.
+**Source dir:** `src/web/`.
+**Process boundary:** Main Node.js process started by `dsw web`; blocks until SIGINT/SIGTERM.
+**Scaling:** Single local HTTP server.
+**Failure mode:** Port-in-use prints error and exits non-zero; handler errors return JSON `{ error: message }` with appropriate HTTP status code.
+**Related FRs:** `FR-WEB-001`, `FR-WEB-002`, `FR-WEB-003`.
+**Related BR:** none.
+
 ## 6. Data Flow
 
 ### 6.1 Add Account
@@ -241,12 +260,12 @@ sequenceDiagram
 |-------------|------------|------------|---------------|
 | local dev | User workstation | all | none |
 | CI | Ephemeral runner | `C-06`, fake `devin` | none |
-| production use | User workstation | `C-01` through `C-07` | none |
+| production use | User workstation | `C-01` through `C-08` | loopback `127.0.0.1:3456` |
 
 ### 7.2 Network
 
 - Public ingress: none.
-- Internal network: none.
+- Internal network: loopback HTTP server on `127.0.0.1:3456` when running `dsw web`.
 - Outbound egress: only external tools invoked by update commands or Devin CLI behavior.
 
 ### 7.3 Process layout
@@ -257,6 +276,7 @@ flowchart TB
         dsw[C-01 dsw Node process]
         devin[C-04 devin child process]
         node-pty[C-07 node-pty quota session]
+        web[C-08 dsw web HTTP server process]
         store[(C-02 accounts.json + quota-cache.json)]
         profiles[(C-03 profile dirs)]
         shared[(C-05 shared Devin state)]
@@ -266,6 +286,8 @@ flowchart TB
     node-pty --> devin
     dsw --> store
     dsw --> profiles
+    web --> store
+    web --> profiles
     profiles --> shared
 ```
 
@@ -277,6 +299,7 @@ flowchart TB
 | node-pty | outbound subprocess | local terminal session | profile env passed by `dsw` | n/a | Report per-account quota failure; doctor detect unavailable PTY support. |
 | npm | outbound subprocess | local command/network | user npm config | npm controlled | Stop update on non-zero exit. |
 | git | outbound subprocess | local command/network | user git config | remote controlled | Stop update on non-zero exit. |
+| Browser (web UI) | inbound loopback | HTTP REST + static files | none (local only) | n/a | 404 JSON error for unknown routes; 500 JSON for handler exceptions. |
 
 ## 9. Cross-Cutting Concerns
 
@@ -286,7 +309,7 @@ flowchart TB
 | Observability | Terminal stdout/stderr only. | `C-01` |
 | Config | `DSW_DATA_HOME`, `DSW_CONFIG_HOME`, `DSW_SKIP_QUOTA`, `DSW_QUOTA_CACHE_TTL_MS`, `DSW_QUOTA_TIMEOUT_MS`, `DSW_QUOTA_STARTUP_DELAY_MS`, `DSW_RATE_LIMIT_RETRY_DELAY_MS`, XDG env during Devin subprocesses. | `C-03`, `C-04`, `C-05`, `C-07` |
 | Secrets | Credentials are written by Devin inside profile data dir; auth-like strings, API keys, and Bearer tokens are redacted in parser output. | `C-04`, `C-05` |
-| Healthchecks | `dsw doctor` checks paths, `devin --version`, and node-pty loader availability. | `C-01`, `C-04`, `C-07` |
+| Healthchecks | `dsw doctor` checks paths, `devin --version`, and node-pty loader availability; web dashboard exposes `GET /api/health` and `GET /api/doctor`. | `C-01`, `C-04`, `C-07`, `C-08` |
 | Backpressure | Not applicable for a local synchronous CLI. | n/a |
 
 ## 10. Architectural Decisions (ADR-lite)
@@ -405,6 +428,24 @@ flowchart TB
 **Related components:** `C-01`, `C-06`
 **Source:** `package.json:2`, `package.json:13`, `package.json:16`
 
+### `AD-08` Use built-in node:http for web dashboard
+
+**Status:** Adopted
+**Date:** 2026-05-09
+**Context:** The web dashboard needs an HTTP server and REST API. Adding Express or another framework would increase the dependency footprint.
+**Decision:** Use Node.js built-in `node:http` module with a custom `Router` class for URL pattern matching and `:param` placeholders.
+**Consequences:**
+- Positive: Zero additional npm dependencies for the web server.
+- Positive: Familiar request/response model using standard Node.js primitives.
+- Negative: No middleware ecosystem; CORS, JSON parsing, and error handling are manual.
+- Neutral: Static files are served by the built-in handler with a fallback to 404.
+**Alternatives considered:**
+- Express - rejected to avoid additional dependency weight.
+- Fastify - rejected for the same reason.
+**Related TS:** `TS-RT-02`, `TS-LANG-01`
+**Related components:** `C-08`
+**Source:** `src/web/server.ts:1`, `src/web/router.ts:1`
+
 ## 11. Risks & Trade-offs
 
 | Risk | Impact | Mitigation | Tracked in |
@@ -423,13 +464,14 @@ flowchart TB
 
 | Component | FRs implemented |
 |-----------|-----------------|
-| `C-01` | `FR-CLI-001`, `FR-CLI-002`, `FR-RUN-001`, `FR-RUN-002`, `FR-RUN-004`, `FR-RUN-005`, `FR-OPS-001`, `FR-OPS-002`, `FR-OPS-004`, `FR-OPS-005` |
+| `C-01` | `FR-CLI-001`, `FR-CLI-002`, `FR-RUN-001`, `FR-RUN-002`, `FR-RUN-004`, `FR-RUN-005`, `FR-OPS-001`, `FR-OPS-002`, `FR-OPS-004`, `FR-OPS-005`, `FR-WEB-001` |
 | `C-02` | `FR-ACC-001`, `FR-ACC-002`, `FR-ACC-003`, `FR-ACC-004`, `FR-RUN-006` |
 | `C-03` | `FR-PROF-001`, `FR-PROF-004` |
 | `C-04` | `FR-AUTH-001`, `FR-AUTH-002`, `FR-RUN-001`, `FR-RUN-002`, `FR-RUN-003`, `FR-RUN-004`, `FR-RUN-007` |
 | `C-05` | `FR-PROF-002`, `FR-PROF-003`, `FR-PROF-005` |
 | `C-06` | `FR-OPS-003`, `FR-OPS-004`, `FR-OPS-005` |
 | `C-07` | `FR-RUN-005`, `FR-RUN-006`, `FR-RUN-007`, `FR-OPS-004`, `NFR-COMPAT-002` |
+| `C-08` | `FR-WEB-001`, `FR-WEB-002`, `FR-WEB-003` |
 
 ### Components -> TECHSTACK
 
@@ -442,6 +484,7 @@ flowchart TB
 | `C-05` | `TS-LANG-01`, `TS-SEC-09`, `TS-DATA-10` |
 | `C-06` | `TS-BUILD-04`, `TS-TEST-05`, `TS-TEST-06`, `TS-BUILD-07`, `TS-BUILD-08`, `TS-PKG-12` |
 | `C-07` | `TS-LANG-01`, `TS-RT-02`, `TS-SEC-09`, `TS-INFRA-11` |
+| `C-08` | `TS-LANG-01`, `TS-RT-02` |
 
 ### ADRs -> Components
 
@@ -454,6 +497,7 @@ flowchart TB
 | `AD-05` | `C-06` |
 | `AD-06` | `C-01`, `C-07` |
 | `AD-07` | `C-01`, `C-06` |
+| `AD-08` | `C-08` |
 
 ## Change Log
 
@@ -464,3 +508,4 @@ flowchart TB
 | 1.2.0 | 2026-05-07 | itsddvn | Updated automatic run flow and ADR for quota-aware selection. |
 | 1.3.0 | 2026-05-07 | itsddvn | Added quota cache, package distribution ADR, helper modules, and current env/package concerns. |
 | 1.4.0 | 2026-05-08 | itsddvn | Documented rate-limit continue retry behavior before quota-based account switching. |
+| 1.5.0 | 2026-05-09 | docs-manager | Added C-08 Web Dashboard component, C4 diagram, AD-08 (built-in node:http), process layout, and traceability. |

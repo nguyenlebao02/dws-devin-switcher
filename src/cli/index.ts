@@ -9,6 +9,7 @@ import { runQuota } from './commands/quota';
 import { runRemove } from './commands/remove';
 import { runUpdate } from './commands/update';
 import { runUse } from './commands/use';
+import { runWeb } from './commands/web';
 
 const HELP_TOKENS = new Set(['help', '--help', '-h', '--version', '-V']);
 const REMOVED_TOKENS = new Set(['next']);
@@ -89,6 +90,20 @@ function buildProgram(): Command {
     .description('Print local paths and verify devin CLI is available')
     .action(async () => {
       await runDoctor();
+    });
+
+  program
+    .command('web')
+    .description('Start the Devin Switcher web dashboard')
+    .option('-p, --port <port>', 'Port to listen on', '3456')
+    .option('-H, --host <host>', 'Host to bind to', '127.0.0.1')
+    .option('--open', 'Open browser automatically')
+    .action(async (options) => {
+      await runWeb({
+        port: Number(options.port),
+        host: options.host,
+        open: options.open,
+      });
     });
 
   return program;

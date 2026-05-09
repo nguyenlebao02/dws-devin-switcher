@@ -1,9 +1,9 @@
 # Roadmap - devin-switcher
 
-**Version:** 1.4.0
-**Date:** 2026-05-08
+**Version:** 1.6.0
+**Date:** 2026-05-09
 **Status:** Active
-**Source:** PRD v1.3.0, SRS v1.4.0, TECHSTACK v1.2.0, ARCHITECTURE v1.3.0, TESTCASES v1.4.0
+**Source:** PRD v1.6.0, SRS v1.4.0, TECHSTACK v1.2.0, ARCHITECTURE v1.5.0, TESTCASES v1.4.0
 **Owner:** itsddvn
 
 ---
@@ -152,12 +152,29 @@
 - [x] Version references are aligned to `0.4.9`.
 - [x] Release verification commands pass.
 
+### M8 Web Dashboard (completed)
+
+**Window:** 2026-05-09 -> 2026-05-09.
+**Goal:** Add a local web dashboard for browsing accounts, quota, and organizations.
+**Workstreams:**
+- HTTP server: built-in node:http server with custom Router class, zero additional dependencies.
+- REST API: health, accounts CRUD, auth status, quota, run commands, orgs, and doctor endpoints.
+- Frontend: single-page vanilla HTML/CSS/JS with three tabs (Accounts, Quota, Organizations), dark mode, toast notifications, and modals.
+- Build: copy frontend `index.html` to `dist` after TypeScript compilation.
+**Deliverables:**
+- `src/web/server.ts`, `src/web/router.ts`, `src/web/handlers/*.ts`, `src/web/frontend/index.html`.
+- `src/cli/commands/web.ts`.
+**Hard Exit Gate (all must pass):**
+- [x] `dsw web --port 3456` starts the HTTP server.
+- [x] Frontend loads at `http://127.0.0.1:3456/` and displays account list.
+- [x] REST API endpoints return correct JSON responses.
+
 ## 3. ASCII Timeline
 
 ```text
-2026-05-06       2026-05-07       2026-05-08       2026-05-10
-|--M0--|--M1--|--M2--|--M3--|--M4--|--M5--|--M6--|
- done    done    done    docs    quota  node-pty   release  rate-limit
+2026-05-06       2026-05-07       2026-05-08       2026-05-09
+|--M0--|--M1--|--M2--|--M3--|--M4--|--M5--|--M6--|--M7--|--M8--|
+ done    done    done    docs    quota  node-pty   release rate-limit  web
 ```
 
 ## 4. Critical Path
@@ -171,11 +188,11 @@
 
 ## 5. Workstream Allocation
 
-| Stream | Owner | M0 | M1 | M2 | M3 | M4 | M5 | M6 |
-|--------|-------|----|----|----|----|----|----|----|
-| Product/docs | itsddvn | support | support | support | lead | support | lead | lead |
-| CLI/runtime | itsddvn | lead | lead | lead | support | lead | lead | lead |
-| Tests/release | itsddvn | lead | lead | lead | lead | lead | lead | lead |
+| Stream | Owner | M0 | M1 | M2 | M3 | M4 | M5 | M6 | M7 | M8 |
+|--------|-------|----|----|----|----|----|----|----|----|----|
+| Product/docs | itsddvn | support | support | support | lead | support | lead | lead | lead | support |
+| CLI/runtime | itsddvn | lead | lead | lead | support | lead | lead | lead | lead | lead |
+| Tests/release | itsddvn | lead | lead | lead | lead | lead | lead | lead | lead | lead |
 
 ## 6. Risk vs Schedule
 
@@ -185,12 +202,15 @@
 | Devin interactive `/usage` output changes. | Medium | Medium | Keep parser tests small and fail per account without stopping full quota scan. | itsddvn |
 | node-pty install is unavailable on a target OS. | Medium | Low | Make doctor warning explicit and keep legacy runner fallback for default runs. | itsddvn |
 | Real Devin CLI output diverges from fake shim. | Medium | Medium | Use `dsw doctor` and manual smoke test before release. | itsddvn |
+| Web dashboard port 3456 conflicts with another process. | Low | Low | Error message prints actionable port-in-use guidance; `--port` override available. | itsddvn |
+| Browser security blocks localhost HTTP fetch from file:// or HTTPS origins. | Low | Low | CORS headers allow all origins; intended usage is direct localhost navigation. | itsddvn |
 
 ## 7. Release Plan
 
 | Tag | Milestone | Date | Audience |
 |-----|-----------|------|----------|
-| 0.4.9 | Current npm/GitHub release with shared Trial-only selection, FreePlan normalization, safer prompt input, and rate-limit recovery | 2026-05-09 | npm/GitHub |
+| 0.5.0 | Current npm/GitHub release with web dashboard (`dsw web`), REST API, and single-page frontend | 2026-05-09 | npm/GitHub |
+| 0.4.9 | Previous npm/GitHub release with shared Trial-only selection, FreePlan normalization, safer prompt input, and rate-limit recovery | 2026-05-09 | npm/GitHub |
 | 0.4.8 | Previous npm/GitHub release with rate-limit `--continue` recovery before quota-based account switching | 2026-05-08 | npm/GitHub |
 | 0.4.7 | Earlier npm/GitHub release with quota PTY install hardening and package metadata alignment | 2026-05-07 | npm/GitHub |
 
@@ -219,10 +239,10 @@ When docs disagree, this order wins:
 5. **SRS** - testable requirements - Included.
 6. **UseCases** - actor interactions - Included.
 7. **UserFlows** - N/A, not applicable for this CLI archetype.
-8. **SITEMAP** - N/A, no UI routes.
+8. **SITEMAP** - Web UI routes: `/` (dashboard), `/api/*` (REST API).
 9. **DESIGN** - N/A, no visual design system.
 10. **Database** - N/A, persistence is JSON file storage, not a DB engine.
-11. **API_REFERENCE** - N/A, no exposed API.
+11. **API_REFERENCE** - REST API at `http://127.0.0.1:3456/api/*`.
 12. **TESTCASES** - verification - Included.
 13. **ROADMAP** - when - Included.
 14. **EXTERNAL_DOCS** - external APIs, specs, resources consumed - Included.
@@ -241,3 +261,4 @@ Lower-numbered doc wins ties. Update upstream first.
 | 1.3.0 | 2026-05-07 | itsddvn | Marked package publication, quota cache, and  docs as completed for commit `49ceed6`. |
 | 1.4.0 | 2026-05-08 | itsddvn | Added completed `0.4.8` rate-limit recovery release milestone. |
 | 1.5.0 | 2026-05-09 | Codex | Updated current release to `0.4.9` for shared Trial-only selection, FreePlan normalization, prompt input, and rate-limit recovery fixes. |
+| 1.6.0 | 2026-05-09 | docs-manager | Added M8 Web Dashboard milestone, updated release plan to v0.5.0, updated timeline, and hierarchy references. |
